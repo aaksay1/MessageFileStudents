@@ -16,7 +16,7 @@ def main(port, key_file):
     keys = read_keys(key_file)
     
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind('localhost', port)
+    sock.bind(('localhost', port))
     sock.listen(1)
     
     while True:
@@ -59,6 +59,7 @@ def main(port, key_file):
                         break
 
                 elif data == "QUIT":
+                    print("closed")
                     conn.close()
                     break
 
