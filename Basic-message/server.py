@@ -20,7 +20,7 @@ def main():
         conn, addr = s.accept()
 
         data = conn.recv(1024).decode('ascii')
-        print(data)  # Print received HELLO message
+        print(data.replace('\\n.', ''))  # Print received HELLO message
 
         if data != "HELLO":
             conn.close()
@@ -36,7 +36,7 @@ def main():
                 message = ""
                 while True:
                     line = conn.recv(1024).decode('ascii')
-                    print(line)  # Print received message lines
+                    print(line.replace('\\n.', ''))  # Print received message lines
 
                     if line.endswith("\\n."):
                         message += line[:-3]
@@ -50,6 +50,7 @@ def main():
                 conn.sendall(signature.encode('ascii'))
 
                 response = conn.recv(1024).decode('ascii')
+                print(response.replace('\\n.', ''))  # Print received PASS or FAIL message
 
                 if response not in ["PASS", "FAIL"]:
                     conn.close()
@@ -58,7 +59,7 @@ def main():
                 conn.sendall("260 OK".encode('ascii'))
 
             elif data == "QUIT":
-                print(data)  # Print received QUIT message
+                print(data.replace('\\n.', ''))  # Print received QUIT message
                 conn.close()
                 sys.exit(0)  # Terminate the server
 
