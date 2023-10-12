@@ -16,11 +16,13 @@ def main():
     s.bind(('', listen_port))
     s.listen(1)
 
+    key_index = 0  # Initialize key_index to 0
+
     while True:
         conn, addr = s.accept()
 
         data = conn.recv(1024).decode('ascii')
-        print(data.replace('\\n.', ''))  # Print received HELLO message
+        print(data.replace('\\n.', ''))
 
         if data != "HELLO":
             conn.close()
@@ -36,21 +38,21 @@ def main():
                 message = ""
                 while True:
                     line = conn.recv(1024).decode('ascii')
-                    print(line.replace('\\n.', ''))  # Print received message lines
+                    print(line.replace('\\n.', ''))
 
                     if line.endswith("\\n."):
                         message += line[:-3]
                         break
                     message += line
-
-                hasher.update((message + keys[0]).encode('ascii'))
+                
+                hasher.update((message + keys[key_index]).encode('ascii'))  # Use the key at the current index
 
                 signature = hasher.hexdigest()
                 conn.sendall("270 SIG".encode('ascii'))
                 conn.sendall(signature.encode('ascii'))
 
                 response = conn.recv(1024).decode('ascii')
-                print(response.replace('\\n.', ''))  # Print received PASS or FAIL message
+                print(response.replace('\\n.', ''))
 
                 if response not in ["PASS", "FAIL"]:
                     conn.close()
@@ -58,10 +60,12 @@ def main():
 
                 conn.sendall("260 OK".encode('ascii'))
 
+                key_index += 1  # Increment key_index for the next message
+
             elif data == "QUIT":
-                print(data.replace('\\n.', ''))  # Print received QUIT message
+                print(data.replace('\\n.', ''))
                 conn.close()
-                sys.exit(0)  # Terminate the server
+                sys.exit(0)
 
 if __name__ == "__main__":
     main()
