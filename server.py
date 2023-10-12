@@ -1,82 +1,66 @@
-import argparse
 import socket
+import sys
 import hashlib
 
-def read_keys(key_file):
-    try:
-        with open(key_file) as file:
-            keys = [line.strip() for line in file.readlines()]
-            return keys
-    except FileNotFoundError:
-        print("File not found")
-        return[]
- 
-def main(port, key_file):
+def main():
+    listen_port = int(sys.argv[1])
+    key_file = sys.argv[2]
 
-    keys = read_keys(key_file)
-    
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(('localhost', port))
-    sock.listen(1)
-    
-    while True:
-        conn, addr = sock.accept()
-        try:
-            data = conn.recv(1024).decode('utf-8').strip()
+    with open(key_file, 'r') as f:
+        keys = [line.strip() for line in f.readlines()]
 
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('0.0.0.0', listen_port))
+        s.listen()
+
+        conn, addr = s.accept()
+        with conn:
+            data = conn.recv(1024).decode().strip()
+            print(data)
             if data != "HELLO":
-                print("Invalid message. Closing server")
-                conn.close
-                break
+                print("Error: Unexpected client request")
+                conn.close()
+                return
+            conn.sendall(b"260 OK\n")
 
             while True:
-                data = conn.recv(1024).decode('utf-8').strip()
-                if not data:
-                    break
+                command = conn.recv(1024).decode().strip()
+                print(command)
 
-                if data == "DATA":
-
-                    sha256_hash = hashlib.sha256()
-
+                if command == "DATA":
+                    message_lines = []
+                    hash_obj = hashlib.sha256()
                     while True:
-                        line = conn.recv(1024).decode('utf-8').strip()
-                        if(line == "."):
+                        line = conn.recv(1024).decode().strip()
+                        print(line)
+                        if line == ".":
+ 
                             break
+                        hash_obj.update(line.encode())
+                        message_lines.append(line)
 
-                        sha256_hash.update(line.encode('utf-8'))
+                    hash_obj.update(keys[len(message_lines) % len(keys)].encode())
+                    signature = hash_obj.hexdigest()
 
-                    for key in keys:
-                        sha256_hash.update(key.encode('utf-8'))
+                    conn.sendall(b"270 SIG\n")
+                    conn.sendall(signature.encode() + b"\n")
 
-                    conn.sendall(b'270 SIG\n')
-                    conn.sendall(sha256_hash.hexdigest().encode('utf-8') + b'\n')
-
-                    response = conn.recv(1024).decode('utf-8').strip()
-
+                    response = conn.recv(1024).decode().strip()
+                    print(response)
                     if response not in ["PASS", "FAIL"]:
-                        print("Invalid message. Closing the connection.")
+                        print("Error: Unexpected client response")
                         conn.close()
-                        break
+                        return
+                    conn.sendall(b"260 OK\n")
 
-                elif data == "QUIT":
-                    print("closed")
+                elif command == "QUIT":
                     conn.close()
-                    break
+                    return
 
                 else:
-                    print("Received a default command:", data)
+                    print("Error: Unknown command")
                     conn.close()
-                    break
-
-        finally:
-            conn.close()
+                    return
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("listen_port", type = int, help = "Port to listen on")
-    parser.add_argument("key_file", type = str, help = "Key file")
-
-    args = parser.parse_args()
-
-    main(args.listen_port, args.key_file)
+    main()
